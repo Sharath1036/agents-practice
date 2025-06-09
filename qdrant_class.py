@@ -6,21 +6,22 @@ from agno.vectordb.qdrant import Qdrant
 from agno.vectordb.mongodb import MongoDb
 from agno.embedder.ollama import OllamaEmbedder
 
-class PDFKnowledgeAgent:
-    def __init__(self, urls: list[str], database: str):
+class PDFUrlKnowledgeAgent:
+    def __init__(self, urls: list[str], vector_database: str):
         load_dotenv(override=True)
-
         self.collection_name = "vector-embeddings"
         self.qdrant_url = getenv("QDRANT_URL")
         self.qdrant_api_key = getenv("QDRANT_API_KEY")
         self.mongo_connection_string = getenv("MONGO_CONNECTION_STRING")
+        self.database_name = "agno"
+        self.search_index_name = "vector-search"
         self.embedder = OllamaEmbedder(id="openhermes", host='http://localhost:11434/', timeout=1000.0)
-        self.vector_db = self._init_vector_db(database)
+        self.vector_db = self._init_vector_db(vector_database)
         self.knowledge_base = self._init_knowledge_base(urls)
         self.agent = self._init_agent()
 
-    def _init_vector_db(self, database: str) -> Qdrant:
-        if database == 'Qdrant':
+    def _init_vector_db(self, vector_database: str):
+        if vector_database == 'Qdrant':
             return Qdrant(
                 collection=self.collection_name,
                 url=self.qdrant_url,
@@ -30,7 +31,8 @@ class PDFKnowledgeAgent:
             return MongoDb(
                 collection_name=self.collection_name,
                 db_url=self.mongo_connection_string,
-                database="agno",
+                database=self.database_name,
+                search_index_name=self.search_index_name,
             )
 
     def _init_knowledge_base(self, urls: list[str]) -> PDFUrlKnowledgeBase:
@@ -63,10 +65,9 @@ if __name__ == "__main__":
         "https://www.scollingsworthenglish.com/uploads/3/8/4/2/38422447/garth_stein_-_the_art_of_racing_in_the_rain.pdf"
     ]
 
-    database = 'MongoDb' 
-    runner = PDFKnowledgeAgent(urls=urls, database=database)
+    vector_database = 'MongoDb' 
+    runner = PDFUrlKnowledgeAgent(urls=urls, database=vector_database)
 
     runner.embed_sample("The quick brown fox jumps over the lazy dog.")
     runner.load_documents(recreate=False)
     runner.query("How did Eve die?", markdown=True)
-
